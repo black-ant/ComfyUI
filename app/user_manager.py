@@ -394,6 +394,46 @@ class UserManager():
 
             return web.json_response(resp)
 
+        @routes.put("/userdata/{file}")
+        async def put_userdata(request):
+            """
+            Upload or update a user data file using PUT method.
+            
+            This endpoint is identical to POST /userdata/{file} but uses PUT method,
+            which is commonly used by nginx proxies and RESTful APIs for file updates.
+            
+            This fixes 405 Method Not Allowed errors when using nginx as a reverse proxy.
+            """
+            path = get_user_data_path(request)
+            if not isinstance(path, str):
+                return path
+
+            overwrite = request.query.get("overwrite", 'true') != "false"
+            full_info = request.query.get('full_info', 'false').lower() == "true"
+
+            if not overwrite and os.path.exists(path):
+                return web.Response(status=409, text="File already exists")
+
+            try:
+                body = await request.read()
+
+                with open(path, "wb") as f:
+                    f.write(body)
+            except OSError as e:
+                logging.warning(f"Error saving file '{path}': {e}")
+                return web.Response(
+                    status=400,
+                    reason="Invalid filename. Please avoid special characters like :\\/*?\"<>|"
+                )
+
+            user_path = self.get_request_user_filepath(request, None)
+            if full_info:
+                resp = get_file_info(path, user_path)
+            else:
+                resp = os.path.relpath(path, user_path)
+
+            return web.json_response(resp)
+
         @routes.delete("/userdata/{file}")
         async def delete_userdata(request):
             path = get_user_data_path(request, check_exists=True)
