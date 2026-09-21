@@ -139,9 +139,9 @@ Example:
   "_quantization_metadata": {
     "format_version": "1.0",
     "layers": {
-      "model.layers.0.mlp.up_proj": "float8_e4m3fn",
-      "model.layers.0.mlp.down_proj": "float8_e4m3fn",
-      "model.layers.1.mlp.up_proj": "float8_e4m3fn"
+      "model.layers.0.mlp.up_proj": {"format": "float8_e4m3fn"},
+      "model.layers.0.mlp.down_proj": {"format": "float8_e4m3fn"},
+      "model.layers.1.mlp.up_proj": {"format": "float8_e4m3fn"}
     }
   }
 }
@@ -151,6 +151,27 @@ Example:
 ## Creating Quantized Checkpoints
 
 To create compatible checkpoints, use any quantization tool provided the output follows the checkpoint format described above and uses a layout defined in `QUANT_ALGOS`.
+
+### Diffusion attention preferences
+
+A diffusion attention module can have a `<module path>.comfy_attention.config` entry whose
+uint8 tensor contains UTF-8 JSON:
+
+```json
+{"attention": "comfy_kitchen_int8"}
+```
+
+Use the module that performs attention, such as `transformer_blocks.0.attn` for
+Qwen Image 2.1 or `blocks.0.attn` for MiniMax H3.
+
+Only `comfy_kitchen_int8` is supported. Invalid targets and other method names
+are ignored with a warning during loading, leaving normal attention selection.
+Kitchen INT8 support is checked when each preference is loaded
+for the primary device; unsupported devices keep normal attention selection.
+Explicit attention overrides retain priority.
+The `ComfyAttention` child module loads and saves its own metadata through normal
+state-dict loading and saving. Preferences do not enable weight
+quantization. Text encoder and VAE loaders do not apply these preferences.
 
 ### Weight Quantization
 

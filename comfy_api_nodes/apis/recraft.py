@@ -198,11 +198,6 @@ dict_recraft_substyles_v3 = {
 }
 
 
-class RecraftModel(str, Enum):
-    recraftv3 = 'recraftv3'
-    recraftv2 = 'recraftv2'
-
-
 class RecraftImageSize(str, Enum):
     res_1024x1024 = '1024x1024'
     res_1365x1024 = '1365x1024'
@@ -221,6 +216,61 @@ class RecraftImageSize(str, Enum):
     res_1707x1024 = '1707x1024'
 
 
+RECRAFT_V4_SIZES = [
+    "1024x1024",
+    "1536x768",
+    "768x1536",
+    "1280x832",
+    "832x1280",
+    "1216x896",
+    "896x1216",
+    "1152x896",
+    "896x1152",
+    "832x1344",
+    "1280x896",
+    "896x1280",
+    "1344x768",
+    "768x1344",
+]
+
+RECRAFT_V4_PRO_SIZES = [
+    "2048x2048",
+    "3072x1536",
+    "1536x3072",
+    "2560x1664",
+    "1664x2560",
+    "2432x1792",
+    "1792x2432",
+    "2304x1792",
+    "1792x2304",
+    "1664x2688",
+    "2560x1792",
+    "1792x2560",
+    "2688x1536",
+    "1536x2688",
+]
+
+RECRAFT_V4_STYLES_MODELS = frozenset(
+    {
+        "recraftv4_styles",
+        "recraftv4_styles_vector",
+        "recraftv4_styles_pro",
+        "recraftv4_styles_pro_vector",
+    }
+)
+
+RECRAFT_V4_VECTOR_MODEL_FOR_STYLE = {
+    "recraftv4": "recraftv4_vector",
+    "recraftv4_pro": "recraftv4_pro_vector",
+}
+
+RECRAFT_STYLE_MATCH_OPTIONS = ["precise", "flexible"]
+
+RECRAFT_STYLE_REFERENCES_MAX = 10
+
+RECRAFT_STYLE_REFERENCES_MAX_BYTES = 10 * 1024 * 1024
+
+
 class RecraftColorObject(BaseModel):
     rgb: list[int] = Field(..., description='An array of 3 integer values in range of 0...255 defining RGB Color Model')
 
@@ -234,17 +284,18 @@ class RecraftControlsObject(BaseModel):
 
 class RecraftImageGenerationRequest(BaseModel):
     prompt: str = Field(..., description='The text prompt describing the image to generate')
-    size: RecraftImageSize | None = Field(None, description='The size of the generated image (e.g., "1024x1024")')
+    size: str | None = Field(None, description='The size of the generated image (e.g., "1024x1024")')
     n: int = Field(..., description='The number of images to generate')
     negative_prompt: str | None = Field(None, description='A text description of undesired elements on an image')
-    model: RecraftModel | None = Field(RecraftModel.recraftv3, description='The model to use for generation (e.g., "recraftv3")')
+    model: str = Field(...)
     style: str | None = Field(None, description='The style to apply to the generated image (e.g., "digital_illustration")')
     substyle: str | None = Field(None, description='The substyle to apply to the generated image, depending on the style input')
     controls: RecraftControlsObject | None = Field(None, description='A set of custom parameters to tweak generation process')
     style_id: str | None = Field(None, description='Use a previously uploaded style as a reference; UUID')
+    style_match: str | None = Field(None, description='How closely to follow the referenced style: "precise" or "flexible" for V4 models')
+    style_reference_urls: list[str] | None = Field(None, description='URLs or data URLs of style reference images; a private style is created from them and returned as style_id')
     strength: float | None = Field(None, description='Defines the difference with the original image, should lie in [0, 1], where 0 means almost identical, and 1 means miserable similarity')
     random_seed: int | None = Field(None, description="Seed for video generation")
-    # text_layout
 
 
 class RecraftReturnedObject(BaseModel):
@@ -257,10 +308,12 @@ class RecraftImageGenerationResponse(BaseModel):
     credits: int = Field(..., description='Number of credits used for the generation')
     data: list[RecraftReturnedObject] | None = Field(None, description='Array of generated image information')
     image: RecraftReturnedObject | None = Field(None, description='Single generated image')
+    style_id: str | None = Field(None, description='The style applied to the generation, including one auto-created from style references')
 
 
 class RecraftCreateStyleRequest(BaseModel):
-    style: str = Field(..., description="realistic_image, digital_illustration, vector_illustration, or icon")
+    style: str = Field(..., description="any, realistic_image, digital_illustration, vector_illustration, or icon")
+    model: str | None = Field(None, description="The model family the style is created for, e.g. recraftv4_styles")
 
 
 class RecraftCreateStyleResponse(BaseModel):
